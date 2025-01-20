@@ -21,7 +21,7 @@ namespace TabletHighlight
         internal static readonly string Expedition = "Expedition Precursor Tablet";
         internal static readonly string Boss = "Overseer Precursor Tablet";
 
-        internal static readonly List<String> All = new List<String> { Irradiated, Breach, Delirium, Ritual, Expedition, Boss };
+        internal static readonly List<string> All = new List<string> { Irradiated, Breach, Delirium, Ritual, Expedition, Boss };
     }
 
     internal struct TabletItem(Base baseComponent, Mods modsComponent, RectangleF rectangleF, ItemLocation location) {
