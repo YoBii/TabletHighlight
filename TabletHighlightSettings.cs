@@ -12,7 +12,7 @@ public class TabletHighlightSettings : ISettings
 {
   public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
-    [Menu("Score Features")]
+    [Menu("General Settings")]
     public GeneralSettings General { get; set; } = new GeneralSettings();
     
     [Menu("Graphics, Colors, and Font Settings")]    
