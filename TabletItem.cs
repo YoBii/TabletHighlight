@@ -20,14 +20,20 @@ namespace TabletHighlight
         internal static readonly string Ritual = "Ritual Precursor Tablet";
         internal static readonly string Expedition = "Expedition Precursor Tablet";
         internal static readonly string Boss = "Overseer Precursor Tablet";
-
         internal static readonly List<string> All = new List<string> { Irradiated, Breach, Delirium, Ritual, Expedition, Boss };
     }
 
-    internal struct TabletItem(Base baseComponent, Mods modsComponent, RectangleF rectangleF, ItemLocation location) {
-        public Base baseComponent = baseComponent;
-        public Mods mods = modsComponent;
-        public RectangleF rect = rectangleF;
-        public ItemLocation location = location;
+    internal class TabletItem {
+        public Base baseComponent;
+        public Mods mods;
+        public RectangleF rect;
+        public ItemLocation location;
+
+        internal TabletItem(Base baseComponent, Mods modsComponent, RectangleF rectangleF, ItemLocation location) {
+            this.baseComponent = baseComponent;
+            this.mods = modsComponent;
+            this.rect = rectangleF;
+            this.location = location;
+        }
     }
 }

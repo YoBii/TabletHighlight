@@ -10,18 +10,15 @@ using RectangleF = ExileCore2.Shared.RectangleF;
 using ExileCore2.Shared.Nodes;
 using ExileCore2.PoEMemory.Elements.InventoryElements;
 using Microsoft.VisualBasic.Logging;
+using System.Diagnostics.Eventing.Reader;
 
 
 namespace TabletHighlight;
 
-public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
-{
+public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings> {
     private IngameState InGameState => GameController.IngameState;
-    private List<string> CustomModGroup1;
-    private List<string> CustomModGroup2;
-    private List<string> CustomModGroup3;
-
-     
+    List<CustomModGroup> CustomModGroups = new List<CustomModGroup>();
+    List<TabletItem> tablets = new List<TabletItem>();
 
     public override bool Initialise()
     {
@@ -32,17 +29,14 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
 
     public override void Render()
     {
-        IList<TabletItem> tablets = [];
+        // Run if inventory panel is opened
+        if (InGameState.IngameUi.InventoryPanel.IsVisible) {
+        tablets.Clear();
 
         var stashPanel = InGameState.IngameUi.StashElement;
         var stashPanelGuild = InGameState.IngameUi.GuildStashElement;
-        var inventoryPanel = InGameState.IngameUi.InventoryPanel;
 
         bool isQuadTab = false;
-
-
-        // Run if inventory panel is opened
-        if (inventoryPanel.IsVisible) {
             // Add stash items
             if (stashPanel.IsVisible && stashPanel.VisibleStash != null) {
                 if (stashPanel.VisibleStash.TotalBoxesInInventoryRow == 24) {
@@ -76,9 +70,9 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
                 int imq = 0;
                 int affectedMaps = 0;
 
-                bool custom1 = false;
-                bool custom2 = false;
-                bool custom3 = false;
+                foreach (var customGroup in CustomModGroups) {
+                    customGroup.Matched = false;
+                }
 
                 // Iterate through the mods
                 foreach (var mod in itemMods.ItemMods) {
@@ -113,34 +107,17 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
                             break;
                     }
 
-                    if (CustomModGroup1.Count > 0) {
-                        foreach (var customMod in CustomModGroup1) {
-                            if (mod.DisplayName.Contains(customMod, StringComparison.OrdinalIgnoreCase)) {
-                                custom1 = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (CustomModGroup2.Count > 0) {
-                        foreach (var customMod in CustomModGroup2) {
-                            if (mod.DisplayName.Contains(customMod, StringComparison.OrdinalIgnoreCase)) {
-                                custom2 = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (CustomModGroup3.Count > 0) {
-                        foreach (var customMod in CustomModGroup3) {
-                            if (mod.DisplayName.Contains(customMod, StringComparison.OrdinalIgnoreCase)) {
-                                custom3 = true;
-                                break;
+                    foreach (var customGroup in CustomModGroups) {
+                        if (customGroup != null && customGroup.Mods.Count > 0) {
+                            foreach (var customMod in customGroup.Mods) {
+                                if (mod.DisplayName.Contains(customMod, StringComparison.OrdinalIgnoreCase)) {
+                                    customGroup.Matched = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
-
                 // Drawing stats text
                 if (tablet.location == ItemLocation.Inventory || (tablet.location == ItemLocation.Stash && !isQuadTab)) {
 
@@ -160,92 +137,37 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
                 }
 
                 // Check if min affected maps is met
-
                 if (tablet.baseComponent.Name == TabletType.Irradiated && affectedMaps < Settings.General.MinIrradiatedMaps) {
                     continue;
-                }
-                else if (tablet.baseComponent.Name == TabletType.Breach && affectedMaps < Settings.General.MinBreachMaps) {
+                } else if (tablet.baseComponent.Name == TabletType.Breach && affectedMaps < Settings.General.MinBreachMaps) {
                     continue;
-                }
-                else if (tablet.baseComponent.Name == TabletType.Delirium && affectedMaps < Settings.General.MinDeliriumMaps) {
+                } else if (tablet.baseComponent.Name == TabletType.Delirium && affectedMaps < Settings.General.MinDeliriumMaps) {
                     continue;
-                }
-                else if (tablet.baseComponent.Name == TabletType.Ritual && affectedMaps < Settings.General.MinRitualMaps) {
+                } else if (tablet.baseComponent.Name == TabletType.Ritual && affectedMaps < Settings.General.MinRitualMaps) {
                     continue;
-                }
-                else if (tablet.baseComponent.Name == TabletType.Expedition && affectedMaps < Settings.General.MinExpeditionMaps) {
+                } else if (tablet.baseComponent.Name == TabletType.Expedition && affectedMaps < Settings.General.MinExpeditionMaps) {
                     continue;
-                }
-                else if (tablet.baseComponent.Name == TabletType.Boss && affectedMaps < Settings.General.MinBossMaps) {
+                } else if (tablet.baseComponent.Name == TabletType.Boss && affectedMaps < Settings.General.MinBossMaps) {
                     continue;
                 }
 
                 // Drawing highlight
                 if (iiq >= Settings.General.MinQuantity) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.QuantityHighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.QuantityHighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
+                    DrawHighlight(bbox, Settings.Graphics.QuantityHighlightColor);
+                } else if (iir >= Settings.General.MinRarity) {
+                    DrawHighlight(bbox, Settings.Graphics.RarityHighlightColor);
+                } else if (imq >= Settings.General.MinMapQuantity) {
+                    DrawHighlight(bbox, Settings.Graphics.MapQuantityHighlightColor);
+                } else if (CustomModGroups[0].Matched) {
+                    DrawHighlight(bbox, Settings.Graphics.CustomGroup1HighlightColor);
+                } else if (CustomModGroups[1].Matched) {
+                    DrawHighlight(bbox, Settings.Graphics.CustomGroup2HighlightColor);
+                } else if (CustomModGroups[2].Matched) {
+                    DrawHighlight(bbox, Settings.Graphics.CustomGroup3HighlightColor);
                 }
-                else if (iir >= Settings.General.MinRarity) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.RarityHighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.RarityHighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
-                }
-                else if (imq >= Settings.General.MinMapQuantity) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.MapQuantityHighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.MapQuantityHighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
-                }
-                else if (custom1) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.CustomGroup1HighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.CustomGroup1HighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
-                }
-                else if (custom2) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.CustomGroup2HighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.CustomGroup2HighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
-                }
-                else if (custom3) {
-                    switch (Settings.Graphics.HighlightStyle) {
-                        case 1:
-                            DrawBorderHighlight(bbox, Settings.Graphics.CustomGroup3HighlightColor, Settings.Graphics.BorderThickness);
-                            break;
-                        case 2:
-                            DrawBoxHighlight(bbox, Settings.Graphics.CustomGroup3HighlightColor, Settings.Graphics.BannedBoxRounding.Value);
-                            break;
-                    }
-                }
-
-
-
             }
         }
+        
     }
 
     private static void TryAddTablet(ServerInventory.InventSlotItem item, IList<TabletItem> targetList) {
@@ -296,12 +218,24 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
     }
 
     private void LoadCustomModGroups() {
-        CustomModGroup1 = ParseModifiers(Settings.General.CustomModGroup1.Value);
-        CustomModGroup2 = ParseModifiers(Settings.General.CustomModGroup2.Value);
-        CustomModGroup3 = ParseModifiers(Settings.General.CustomModGroup3.Value);
+        CustomModGroups.Clear();
+        CustomModGroups.Add(new CustomModGroup(ParseModifiers(Settings.General.CustomModGroup1.Value)));
+        CustomModGroups.Add(new CustomModGroup(ParseModifiers(Settings.General.CustomModGroup2.Value)));
+        CustomModGroups.Add(new CustomModGroup(ParseModifiers(Settings.General.CustomModGroup3.Value)));
     }
 
-    private void DrawBorderHighlight(RectangleF rect, ColorNode color, int thickness)
+    private void DrawHighlight(RectangleF rect, Color color) {
+        switch (Settings.Graphics.HighlightStyle) {
+            case 1:
+                DrawBorderHighlight(rect, color, Settings.Graphics.BorderThickness);
+                break;
+            case 2:
+                DrawBoxHighlight(rect, color, Settings.Graphics.BannedBoxRounding.Value);
+                break;
+        }
+    }
+
+    private void DrawBorderHighlight(RectangleF rect, Color color, int thickness)
     {
         int scale = thickness - 1;
         int innerX = (int)rect.X + 1 + (int)(0.5 * scale);
@@ -312,7 +246,7 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings>
         Graphics.DrawFrame(scaledFrame, color, thickness);
     }
 
-    private void DrawBoxHighlight(RectangleF rect, ColorNode color, int rounding)
+    private void DrawBoxHighlight(RectangleF rect, Color color, int rounding)
     {
         int innerX = (int)rect.X + 1 + (int)(0.5 * rounding);
         int innerY = (int)rect.Y + 1 + (int)(0.5 * rounding);
