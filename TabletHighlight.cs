@@ -39,6 +39,9 @@ public class TabletHighlight : BaseSettingsPlugin<TabletHighlightSettings> {
         bool isQuadTab = false;
             // Add stash items
             if (stashPanel.IsVisible && stashPanel.VisibleStash != null) {
+                if (stashPanel.VisibleStash.VisibleInventoryItems == null) {
+                    return;
+                }
                 if (stashPanel.VisibleStash.TotalBoxesInInventoryRow == 24) {
                     isQuadTab = true;
                 }
